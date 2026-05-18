@@ -302,6 +302,67 @@ def test_row_index_is_one_based_for_first_row(tmp_path):
     assert result.issues[0].row_index == 1
 
 
+def test_email_validation_rejects_invalid_validation_mode():
+    with pytest.raises(ValueError):
+        ar.Email(validation="banana")
+
+
+def test_email_default_validation_mode_is_backward_compatible(tmp_path):
+    path = tmp_path / "emails.csv"
+    path.write_text("email\n" "simple@test.com\n")
+
+    frame = ar.read_csv(path)
+
+    result = ar.validate(
+        frame,
+        {"email": ar.Email(nullable=False)},
+    )
+
+    assert result.passed
+
+
+def test_email_strict_validation_rejects_invalid_emails(tmp_path):
+    path = tmp_path / "invalid_emails.csv"
+    path.write_text("email\n" "bad@@test.com\n" "user@localhost\n" "user@.com\n")
+
+    frame = ar.read_csv(path)
+
+    result = ar.validate(
+        frame,
+        {
+            "email": ar.Email(
+                nullable=False,
+                validation="strict",
+            )
+        },
+    )
+
+    assert not result.passed
+    assert result.issue_count == 3
+    assert all(issue.rule == "email:strict" for issue in result.issues)
+
+
+def test_email_strict_validation_accepts_valid_emails(tmp_path):
+    path = tmp_path / "valid_emails.csv"
+    path.write_text(
+        "email\n" "user@example.com\n" "first.last@test.co.uk\n" "hello+tag@gmail.com\n"
+    )
+
+    frame = ar.read_csv(path)
+
+    result = ar.validate(
+        frame,
+        {
+            "email": ar.Email(
+                nullable=False,
+                validation="strict",
+            )
+        },
+    )
+
+    assert result.passed
+
+
 def test_country_code_validation_accepts_iso_alpha_2_codes(tmp_path):
     path = tmp_path / "countries.csv"
     path.write_text("country\nIN\nUS\nGB\nFR\n")
@@ -487,6 +548,19 @@ def test_schema_composite_unique_empty_columns(tmp_path):
     issues = [i for i in result.issues if i.rule == "composite_unique"]
     assert len(issues) == 1
     assert "cannot be empty" in issues[0].message
+
+
+def test_email_default_keeps_backward_compatibility(sample_csv):
+    frame = ar.read_csv(sample_csv)
+
+    result = ar.validate(
+        frame,
+        {"email": ar.Email(nullable=False)},
+    )
+
+    assert all(
+        issue.rule == "email" for issue in result.issues if "email" in issue.rule
+    )
 
 
 def test_datetime_validation_passes_for_valid_column(tmp_path):
