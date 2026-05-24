@@ -55,10 +55,12 @@ def main():
     print(df)
 
     # 5. Validate the cleaned output with a schema
-    schema = ar.Schema({
-        "id": ar.Int64(nullable=False, unique=True),
-        "value": ar.Float64(nullable=False, min=0.0, max=100.0),
-    })
+    schema = ar.Schema(
+        {
+            "id": ar.Int64(nullable=False, unique=True),
+            "value": ar.Float64(nullable=False, min=0.0, max=100.0),
+        }
+    )
     result = ar.validate(clean_frame, schema)
     print(f"\n--- Validation {'PASSED' if result.passed else 'FAILED'} ---")
     print(f"Issues: {result.issue_count}")
